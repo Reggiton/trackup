@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { registerForPushNotifications, scheduleEventReminder } from '../../lib/notifications'
 import { supabase } from '../../lib/supabase'
 
@@ -175,6 +175,12 @@ export default function AddScreen() {
     }
   }
 
+  // Format date for datetime-local input (web)
+  function toDatetimeLocal(d: Date) {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.header}>Add Event</Text>
@@ -197,16 +203,34 @@ export default function AddScreen() {
       </TouchableOpacity>
 
       {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode="datetime"
-          display="spinner"
-          onChange={(event, selectedDate) => {
-            if (selectedDate) setDate(selectedDate)
-          }}
-          style={styles.picker}
-          textColor="#000"
-        />
+        Platform.OS === 'web' ? (
+          <input
+            type="datetime-local"
+            value={toDatetimeLocal(date)}
+            onChange={(e) => { if (e.target.value) setDate(new Date(e.target.value)) }}
+            style={{
+              width: '100%',
+              padding: 12,
+              fontSize: 16,
+              borderRadius: 8,
+              border: '1px solid #ccc',
+              marginBottom: 16,
+              fontFamily: 'inherit',
+              boxSizing: 'border-box'
+            } as any}
+          />
+        ) : (
+          <DateTimePicker
+            value={date}
+            mode="datetime"
+            display="spinner"
+            onChange={(event, selectedDate) => {
+              if (selectedDate) setDate(selectedDate)
+            }}
+            style={styles.picker}
+            textColor="#000"
+          />
+        )
       )}
 
       <Text style={styles.label}>Type</Text>

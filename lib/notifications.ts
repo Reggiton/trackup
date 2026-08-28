@@ -1,87 +1,59 @@
 import * as Notifications from 'expo-notifications'
+import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-})
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  })
+}
 
-export async function registerForPushNotifications() {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync()
-  let finalStatus = existingStatus
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    finalStatus = status
-  }
-
-  if (finalStatus !== 'granted') {
-    return false
-  }
-
-  return true
+export async function registerForPushNotifications(): Promise<boolean> {
+  if (Platform.OS === 'web') return false
+  const { status } = await Notifications.requestPermissionsAsync()
+  return status === 'granted'
 }
 
 export async function scheduleEventReminder(
   eventId: string,
   title: string,
-  eventDate: Date,
-  reminderMinutesBefore: number
+  date: Date,
+  minutesBefore: number
 ) {
-  const triggerDate = new Date(eventDate.getTime() - reminderMinutesBefore * 60 * 1000)
+  if (Platform.OS === 'web') return
 
-  // Don't schedule if the reminder time is in the past
+  const triggerDate = new Date(date.getTime() - minutesBefore * 60 * 1000)
   if (triggerDate <= new Date()) return
 
-  const identifier = await Notifications.scheduleNotificationAsync({
+  await Notifications.scheduleNotificationAsync({
     content: {
-      title: '📅 Upcoming Event',
-      body: `${title} is in ${reminderMinutesBefore} minutes`,
+      title: 'Upcoming Event',
+      body: `"${title}" is in ${minutesBefore} minutes`,
       data: { eventId },
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: triggerDate,
-    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
   })
-
-  return identifier
-}
-
-export async function cancelEventReminder(identifier: string) {
-  await Notifications.cancelScheduledNotificationAsync(identifier)
 }
 
 export async function scheduleRemindersForAllEvents() {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  if (Platform.OS === 'web') return
 
-  // Cancel all existing scheduled notifications first
   await Notifications.cancelAllScheduledNotificationsAsync()
 
-  // Get all events with reminders enabled
   const { data: events } = await supabase
     .from('events')
     .select('*')
-    .eq('user_id', user.id)
     .eq('reminder_enabled', true)
 
   if (!events) return
 
   for (const event of events) {
-    const eventDate = new Date(event.date)
-    const interval = event.reminder_interval || '30'
-    await scheduleEventReminder(
-      event.id,
-      event.title,
-      eventDate,
-      parseInt(interval)
-    )
+    const date = new Date(event.date)
+    const minutesBefore = parseInt(event.reminder_interval || '30')
+    await scheduleEventReminder(event.id, event.title, date, minutesBefore)
   }
 }
