@@ -1,4 +1,3 @@
-import { BlurView } from '@react-native-community/blur'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
@@ -213,13 +212,6 @@ export default function HomeScreen() {
                     ])
                   }}
                 >
-                  {/* Real BlurView for frosted glass effect */}
-                  <BlurView
-                    style={StyleSheet.absoluteFill}
-                    blurType="light"
-                    blurAmount={18}
-                    reducedTransparencyFallbackColor="rgba(255,255,255,0.85)"
-                  />
 
                   {/* Glass tint overlay */}
                   <View style={styles.glassTint} />
